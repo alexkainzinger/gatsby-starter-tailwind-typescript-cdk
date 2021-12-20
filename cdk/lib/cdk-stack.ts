@@ -4,7 +4,8 @@ import { CfnOutput, Stack, StackProps } from "aws-cdk-lib"
 // New imports in V2
 import { aws_s3 as s3 } from "aws-cdk-lib"
 import { aws_s3_deployment as s3deploy } from "aws-cdk-lib"
-import { aws_cloudfront as cloudFront } from "aws-cdk-lib"
+import { aws_cloudfront as cloudFront, Duration } from "aws-cdk-lib"
+import { aws_cloudfront_origins as origins } from "aws-cdk-lib"
 
 export class CdkStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -20,43 +21,23 @@ export class CdkStack extends Stack {
     this.enableCorsOnBucket(s3Site)
 
     // Create a new CloudFront Distribution
-    const distribution = new cloudFront.CloudFrontWebDistribution(this, `gatsby-cdk-starter-distribution`, {
+    const distribution = new cloudFront.Distribution(this, `gatsby-cdk-starter-distribution`, {
       comment: `gatsby-cdk-starter - CloudFront Distribution`,
-      viewerProtocolPolicy: cloudFront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-      originConfigs: [
+      defaultBehavior: {
+        origin: new origins.S3Origin(s3Site)
+      },
+      errorResponses: [
         {
-          s3OriginSource: {
-            s3BucketSource: s3Site
-          },
-          behaviors: [
-            {
-              isDefaultBehavior: true,
-              compress: true,
-              allowedMethods: cloudFront.CloudFrontAllowedMethods.GET_HEAD,
-              cachedMethods: cloudFront.CloudFrontAllowedCachedMethods.GET_HEAD,
-              forwardedValues: {
-                queryString: true,
-                cookies: {
-                  forward: "none"
-                },
-                headers: ["Access-Control-Request-Headers", "Access-Control-Request-Method", "Origin"]
-              }
-            }
-          ]
-        }
-      ],
-      errorConfigurations: [
-        {
-          errorCode: 403,
-          errorCachingMinTtl: 10,
+          httpStatus: 403,
+          responseHttpStatus: 200,
           responsePagePath: "/404/index.html",
-          responseCode: 200
+          ttl: Duration.seconds(60)
         },
         {
-          errorCode: 404,
-          errorCachingMinTtl: 10,
+          httpStatus: 404,
+          responseHttpStatus: 200,
           responsePagePath: "/404/index.html",
-          responseCode: 200
+          ttl: Duration.seconds(60)
         }
       ]
     })
